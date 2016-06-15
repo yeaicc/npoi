@@ -73,7 +73,18 @@ using System.Xml;
         public POIXMLDocumentPart(OPCPackage pkg)
         {
             PackageRelationship coreRel = pkg.GetRelationshipsByType(PackageRelationshipTypes.CORE_DOCUMENT).GetRelationship(0);
-
+            if (coreRel == null)
+            {
+                coreRel = pkg.GetRelationshipsByType(PackageRelationshipTypes.STRICT_CORE_DOCUMENT).GetRelationship(0);
+                if (coreRel != null)
+                {
+                    throw new POIXMLException("Strict OOXML isn't currently supported, please see bug #57699");
+                }
+            }
+            if (coreRel == null)
+            {
+                throw new POIXMLException("OOXML file structure broken/invalid - no core document found!");
+            }
             this.packagePart = pkg.GetPart(coreRel);
             this.packageRel = coreRel;
         }
@@ -230,6 +241,8 @@ using System.Xml;
          */
         public POIXMLDocumentPart GetRelationById(String id)
         {
+            if (string.IsNullOrEmpty(id))
+                return null;
             return relations[id];
         }
 
@@ -272,7 +285,7 @@ using System.Xml;
          * Remove the relation to the specified part in this namespace and remove the
          * part, if it is no longer needed.
          */
-        protected void RemoveRelation(POIXMLDocumentPart part)
+        protected internal void RemoveRelation(POIXMLDocumentPart part)
         {
             RemoveRelation(part, true);
         }
@@ -287,7 +300,7 @@ using System.Xml;
          *            true, if the part shall be Removed from the namespace if not
          *            needed any longer.
          */
-        protected bool RemoveRelation(POIXMLDocumentPart part, bool RemoveUnusedParts)
+        protected internal bool RemoveRelation(POIXMLDocumentPart part, bool RemoveUnusedParts)
         {
             String id = GetRelationId(part);
             if (id == null)
@@ -333,7 +346,7 @@ using System.Xml;
 
         public override String ToString()
         {
-            return packagePart == null ? null : packagePart.ToString();
+            return packagePart == null ? string.Empty : packagePart.ToString();
         }
 
         /**
@@ -354,7 +367,7 @@ using System.Xml;
          *  </code></pre>
          *
          */
-        protected virtual void Commit()
+        protected internal virtual void Commit()
         {
 
         }
@@ -365,8 +378,11 @@ using System.Xml;
          *
          * @param alreadySaved    context set Containing already visited nodes
          */
-        protected void OnSave(List<PackagePart> alreadySaved)
+        protected internal void OnSave(List<PackagePart> alreadySaved)
         {
+            // this usually clears out previous content in the part...
+            PrepareForCommit();
+
             Commit();
             alreadySaved.Add(this.GetPackagePart());
             foreach (POIXMLDocumentPart p in relations.Values)
@@ -377,7 +393,21 @@ using System.Xml;
                 }
             }
         }
-
+        /**
+         * Ensure that a memory based package part does not have lingering data from previous 
+         * commit() calls. 
+         * 
+         * Note: This is overwritten for some objects, as *PictureData seem to store the actual content 
+         * in the part directly without keeping a copy like all others therefore we need to handle them differently.
+         */
+        protected internal virtual void PrepareForCommit()
+        {
+            PackagePart part = this.GetPackagePart();
+            if (part != null)
+            {
+                part.Clear();
+            }
+        }
         /**
          * Create a new child POIXMLDocumentPart
          *

@@ -153,6 +153,10 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
         {
             return AddNewObject<CT_Text>(RunItemsChoiceType.t);
         }
+        public void RemoveT(int pos)
+        {
+            RemoveObject(RunItemsChoiceType.t, pos);
+        }
 
         public CT_RPr AddNewRPr()
         {
@@ -607,6 +611,16 @@ namespace NPOI.OpenXmlFormats.Wordprocessing
             sw.Write(string.Format("</w:{0}>", nodeName));
         }
 
+
+        public int SizeOfTabArray()
+        {
+            return SizeOfArray(RunItemsChoiceType.tab);
+        }
+
+        public IList<CT_Empty> GetTabList()
+        {
+            return GetObjectList<CT_Empty>(RunItemsChoiceType.tab);
+        }
     }
 
 
